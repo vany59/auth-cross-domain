@@ -35,6 +35,7 @@ export async function getSession() {
   }
 
   return new Promise(function (resolve, reject) {
+    currentUser.setAuthenticationFlowType('CUSTOM_AUTH_FLOW_ONLY')
     currentUser.getSession(function (err: any, session: any) {
       if (err) {
         reject(err)
@@ -85,7 +86,7 @@ export async function verifyCode(username: string, code: string) {
 }
 
 export async function signInWithEmail(username: string, password: string) {
-  return new Promise(function (resolve, reject) {
+  return new Promise(async function (resolve, reject) {
     const authenticationData = {
       Username: username,
       Password: password,
@@ -94,8 +95,21 @@ export async function signInWithEmail(username: string, password: string) {
 
     currentUser = getCognitoUser(username)
 
+    
     currentUser.authenticateUser(authenticationDetails, {
-      onSuccess: function (res: any) {
+      onSuccess: async function (res: any) {
+        currentUser.setAuthenticationFlowType('CUSTOM_AUTH')
+        const session = await getSession()
+        currentUser.setSignInUserSession(session)
+
+        currentUser.sendCustomChallengeAnswer(password, {
+          onSuccess: function (res: any) {
+            resolve(res)
+          },
+          onFailure: function (err: any) {
+            reject(err)
+          },
+        })
         resolve(res)
       },
       onFailure: function (err: any) {
